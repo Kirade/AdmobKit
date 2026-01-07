@@ -87,6 +87,5 @@ open Package.swift
 
 - **No tests**: `Tests/` directory missing. `swift test` has nothing to run.
 - **No CI**: No GitHub Actions or automation.
-- **Empty directory**: `Sources/AdmobKit/Manager/` exists but is empty (WIP or abandoned).
 - **Roadmap items**: Rewarded, Native, App Open ads defined in AdConfig but not implemented yet.
 - **iOS 15+ only**: Uses modern Swift concurrency features.
