@@ -68,29 +68,26 @@ public final class AdmobKit {
         #endif
     }
     
-    // MARK: - Ad Unit ID Accessors (Public)
+    // MARK: - Ad Unit ID Accessors (Internal)
     
-    /// Returns the appropriate banner ad unit ID based on environment.
-    /// Automatically uses test ads in Debug and TestFlight builds.
-    public static var bannerAdUnitID: String {
+    /// Returns the appropriate banner ad unit ID based on environment
+    static var bannerAdUnitID: String {
         if AdConfig.isTestEnvironment {
             return AdConfig.testBannerAdUnitID
         }
         return _bannerAdUnitID ?? AdConfig.testBannerAdUnitID
     }
     
-    /// Returns the appropriate interstitial ad unit ID based on environment.
-    /// Automatically uses test ads in Debug and TestFlight builds.
-    public static var interstitialAdUnitID: String {
+    /// Returns the appropriate interstitial ad unit ID based on environment
+    static var interstitialAdUnitID: String {
         if AdConfig.isTestEnvironment {
             return AdConfig.testInterstitialAdUnitID
         }
         return _interstitialAdUnitID ?? AdConfig.testInterstitialAdUnitID
     }
     
-    /// Returns the appropriate rewarded ad unit ID based on environment.
-    /// Automatically uses test ads in Debug and TestFlight builds.
-    public static var rewardedAdUnitID: String {
+    /// Returns the appropriate rewarded ad unit ID based on environment
+    static var rewardedAdUnitID: String {
         if AdConfig.isTestEnvironment {
             return AdConfig.testRewardedAdUnitID
         }
