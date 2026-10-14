@@ -9,10 +9,10 @@ on:
 jobs:
   build:
     runs-on: macos-15
-    
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -23,6 +23,19 @@ jobs:
         run: |
           xcodebuild build \
             -scheme AdmobKit \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination 'generic/platform=iOS Simulator' \
             -skipPackagePluginValidation \
-            | xcpretty || true
+            -quiet
+
+      # The package ships in Swift 5 language mode so that new concurrency
+      # annotations in GoogleMobileAds 13.x minors never break consuming apps.
+      # This step surfaces them early instead.
+      - name: Build for iOS (Swift 6 strict concurrency)
+        run: |
+          xcodebuild build \
+            -scheme AdmobKit \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation \
+            -quiet \
+            SWIFT_VERSION=6 \
+            SWIFT_STRICT_CONCURRENCY=complete

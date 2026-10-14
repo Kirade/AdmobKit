@@ -29,18 +29,12 @@ public final class InterstitialAdLoader: NSObject {
         print("🔄 AdmobKit: Interstitial loading... (adUnitID: \(adUnitID))")
         #endif
         
-        InterstitialAd.load(with: adUnitID, request: Request()) { [weak self] ad, error in
-            Task { @MainActor in
+        Task { [weak self] in
+            do {
+                let ad = try await InterstitialAd.load(with: adUnitID, request: Request())
                 guard let self = self else { return }
                 
                 self._isLoading = false
-                
-                if let error = error {
-                    #if DEBUG
-                    print("❌ AdmobKit: Interstitial failed - \(error.localizedDescription)")
-                    #endif
-                    return
-                }
                 
                 #if DEBUG
                 print("✅ AdmobKit: Interstitial loaded successfully")
@@ -49,6 +43,12 @@ public final class InterstitialAdLoader: NSObject {
                 self.interstitialAd = ad
                 self.delegateHandler = InterstitialDelegateHandler(loader: self)
                 self.interstitialAd?.fullScreenContentDelegate = self.delegateHandler
+            } catch {
+                self?._isLoading = false
+                
+                #if DEBUG
+                print("❌ AdmobKit: Interstitial failed - \(error.localizedDescription)")
+                #endif
             }
         }
     }
