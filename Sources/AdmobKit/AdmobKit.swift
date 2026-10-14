@@ -72,6 +72,9 @@ public final class AdmobKit {
     
     /// Returns the appropriate banner ad unit ID based on environment
     static var bannerAdUnitID: String {
+        #if DEBUG
+        warnIfNotConfigured(_bannerAdUnitID, format: "banner")
+        #endif
         if AdConfig.isTestEnvironment {
             return AdConfig.testBannerAdUnitID
         }
@@ -80,6 +83,9 @@ public final class AdmobKit {
     
     /// Returns the appropriate interstitial ad unit ID based on environment
     static var interstitialAdUnitID: String {
+        #if DEBUG
+        warnIfNotConfigured(_interstitialAdUnitID, format: "interstitial")
+        #endif
         if AdConfig.isTestEnvironment {
             return AdConfig.testInterstitialAdUnitID
         }
@@ -88,11 +94,23 @@ public final class AdmobKit {
     
     /// Returns the appropriate rewarded ad unit ID based on environment
     static var rewardedAdUnitID: String {
+        #if DEBUG
+        warnIfNotConfigured(_rewardedAdUnitID, format: "rewarded")
+        #endif
         if AdConfig.isTestEnvironment {
             return AdConfig.testRewardedAdUnitID
         }
         return _rewardedAdUnitID ?? AdConfig.testRewardedAdUnitID
     }
+    
+    #if DEBUG
+    /// Release builds silently fall back to test ads when a production ID is missing,
+    /// so surface it while developing.
+    private static func warnIfNotConfigured(_ adUnitID: String?, format: String) {
+        guard adUnitID == nil else { return }
+        print("⚠️ AdmobKit: No production \(format) ad unit ID configured - App Store builds will show test ads")
+    }
+    #endif
     
     // MARK: - Initialization
     
@@ -102,14 +120,13 @@ public final class AdmobKit {
     public func initialize() {
         guard !isInitialized else { return }
         
-        MobileAds.shared.start { [weak self] status in
-            Task { @MainActor in
-                self?.isInitialized = true
-                
-                #if DEBUG
-                self?.logInitializationStatus(status)
-                #endif
-            }
+        Task {
+            let status = await MobileAds.shared.start()
+            isInitialized = true
+            
+            #if DEBUG
+            logInitializationStatus(status)
+            #endif
         }
     }
     
@@ -119,7 +136,7 @@ public final class AdmobKit {
     private func logInitializationStatus(_ status: InitializationStatus) {
         print("✅ Google Mobile Ads SDK initialized")
         for (adapter, state) in status.adapterStatusesByClassName {
-            print("   - \(adapter): \(state.state.rawValue == 1 ? "Ready" : "Not Ready")")
+            print("   - \(adapter): \(state.state == .ready ? "Ready" : "Not Ready")")
         }
     }
     #endif
