@@ -17,14 +17,14 @@ import SwiftUI
 /// }
 /// ```
 public struct PrivacyOptionsButton<Label: View>: View {
-
+    
     @ObservedObject private var admobKit = AdmobKit.shared
     private let label: Label
-
+    
     public init(@ViewBuilder label: () -> Label) {
         self.label = label()
     }
-
+    
     public var body: some View {
         if admobKit.isPrivacyOptionsRequired {
             Button {

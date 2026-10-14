@@ -34,14 +34,14 @@ public enum AdBannerSize: Sendable {
 /// }
 /// ```
 public struct AdBannerView: View {
-
+    
     @State private var adHeight: CGFloat = 0
     private let size: AdBannerSize
-
+    
     public init(size: AdBannerSize = .standard) {
         self.size = size
     }
-
+    
     public var body: some View {
         BannerViewRepresentable(size: size, adHeight: $adHeight)
             .frame(height: adHeight)
@@ -52,83 +52,83 @@ public struct AdBannerView: View {
 // MARK: - UIViewRepresentable
 
 private struct BannerViewRepresentable: UIViewRepresentable {
-
+    
     let size: AdBannerSize
     @Binding var adHeight: CGFloat
-
+    
     func makeUIView(context: Context) -> BannerContainerView {
         BannerContainerView(size: size, adHeight: $adHeight)
     }
-
+    
     func updateUIView(_ uiView: BannerContainerView, context: Context) {}
 }
 
 // MARK: - Banner Container
 
 private class BannerContainerView: UIView {
-
+    
     private let size: AdBannerSize
     private var bannerView: BannerView?
     private var adHeight: Binding<CGFloat>
     private var canRequestAds = false
     private var requestTracker = BannerRequestTracker()
-
+    
     init(size: AdBannerSize, adHeight: Binding<CGFloat>) {
         self.size = size
         self.adHeight = adHeight
         super.init(frame: .zero)
     }
-
+    
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
-
+    
     override func didMoveToWindow() {
         super.didMoveToWindow()
-
+        
         guard window != nil, bannerView == nil else { return }
-
+        
         let banner = BannerView(adSize: AdSizeBanner)
         banner.adUnitID = AdmobKit.bannerAdUnitID
         banner.delegate = self
         banner.rootViewController = findViewController()
         banner.translatesAutoresizingMaskIntoConstraints = false
-
+        
         addSubview(banner)
         NSLayoutConstraint.activate([
             banner.centerXAnchor.constraint(equalTo: centerXAnchor),
             banner.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
         bannerView = banner
-
+        
         Task { [weak self] in
             guard await AdmobKit.shared.waitUntilAdsCanBeRequested() else { return }
             self?.canRequestAds = true
             self?.loadIfNeeded()
         }
     }
-
+    
     override func layoutSubviews() {
         super.layoutSubviews()
         loadIfNeeded()
     }
-
+    
     private func loadIfNeeded() {
         guard canRequestAds, let banner = bannerView else { return }
-
+        
         let width = size == .standard ? AdSizeBanner.size.width : bounds.width
         guard requestTracker.shouldRequest(forWidth: width) else { return }
-
+        
         if size == .adaptive {
             banner.adSize = largeAnchoredAdaptiveBanner(width: width)
         }
         banner.load(Request())
-
+        
         #if DEBUG
         print("🔄 AdmobKit: Banner loading... (adUnitID: \(banner.adUnitID ?? "nil"), width: \(width))")
         #endif
     }
-
+    
     private func findViewController() -> UIViewController? {
         var responder: UIResponder? = self
         while let nextResponder = responder?.next {
@@ -144,34 +144,34 @@ private class BannerContainerView: UIView {
 // MARK: - BannerViewDelegate
 
 extension BannerContainerView: BannerViewDelegate {
-
+    
     func bannerViewDidReceiveAd(_ bannerView: BannerView) {
         #if DEBUG
         print("✅ AdmobKit: Banner loaded successfully (height: \(bannerView.adSize.size.height))")
         #endif
-
+        
         let height = bannerView.adSize.size.height
         DispatchQueue.main.async {
             self.adHeight.wrappedValue = height
         }
     }
-
+    
     func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
         #if DEBUG
         print("❌ AdmobKit: Banner failed - \(error.localizedDescription)")
         #endif
-
+        
         DispatchQueue.main.async {
             self.adHeight.wrappedValue = 0
         }
     }
-
+    
     func bannerViewDidRecordImpression(_ bannerView: BannerView) {
         #if DEBUG
         print("📊 AdmobKit: Banner impression recorded")
         #endif
     }
-
+    
     func bannerViewDidRecordClick(_ bannerView: BannerView) {
         #if DEBUG
         print("👆 AdmobKit: Banner clicked")

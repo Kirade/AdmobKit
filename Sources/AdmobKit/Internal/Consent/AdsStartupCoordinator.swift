@@ -11,26 +11,26 @@ import Foundation
 /// start the SDK only if ads can be requested" once, and shares the result.
 @MainActor
 final class AdsStartupCoordinator {
-
+    
     // MARK: - Dependencies
-
+    
     private let consent: ConsentGateway
     private let startSDK: @MainActor () async -> Void
     private let waitForWindow: @MainActor () async -> Void
-
+    
     // MARK: - State
-
+    
     private var startupTask: Task<Bool, Never>?
     private var sdkStartTask: Task<Void, Never>?
-
+    
     /// Whether the Google Mobile Ads SDK finished starting.
     private(set) var isSDKStarted = false
-
+    
     /// Whether the app must offer this user a privacy options entry point.
     private(set) var isPrivacyOptionsRequired = false
-
+    
     // MARK: - Init
-
+    
     init(
         consent: ConsentGateway,
         startSDK: @escaping @MainActor () async -> Void,
@@ -40,9 +40,9 @@ final class AdsStartupCoordinator {
         self.startSDK = startSDK
         self.waitForWindow = waitForWindow
     }
-
+    
     // MARK: - Startup
-
+    
     /// Runs the startup flow if needed and returns whether ads can be requested.
     /// Repeated and concurrent calls share a single run.
     func start(debugSettings: ConsentDebugSettings?) async -> Bool {
@@ -50,14 +50,14 @@ final class AdsStartupCoordinator {
             let canRequestAds = await startupTask.value
             return canRequestAds || isSDKStarted
         }
-
+        
         let task = Task { await runStartup(debugSettings: debugSettings) }
         startupTask = task
         return await task.value
     }
-
+    
     // MARK: - Privacy Options
-
+    
     /// Presents the privacy options form, then starts the SDK if the user's choice now allows ads.
     func presentPrivacyOptions() async -> Bool {
         do {
@@ -67,40 +67,40 @@ final class AdsStartupCoordinator {
         }
         return await startSDKIfAllowed()
     }
-
+    
     /// Clears stored consent. Takes effect on the next app launch.
     func resetConsent() {
         consent.reset()
         isPrivacyOptionsRequired = consent.isPrivacyOptionsRequired
     }
-
+    
     // MARK: - Private
-
+    
     private func runStartup(debugSettings: ConsentDebugSettings?) async -> Bool {
         do {
             try await consent.requestUpdate(debugSettings: debugSettings)
         } catch {
             log("Consent info update failed - \(error.localizedDescription)")
         }
-
+        
         await waitForWindow()
-
+        
         do {
             try await consent.loadAndPresentIfRequired()
         } catch {
             log("Consent form failed - \(error.localizedDescription)")
         }
-
+        
         return await startSDKIfAllowed()
     }
-
+    
     private func startSDKIfAllowed() async -> Bool {
         isPrivacyOptionsRequired = consent.isPrivacyOptionsRequired
         guard consent.canRequestAds else {
             log("Ads cannot be requested until the user's consent allows it")
             return false
         }
-
+        
         if let sdkStartTask = sdkStartTask {
             await sdkStartTask.value
         } else {
@@ -111,7 +111,7 @@ final class AdsStartupCoordinator {
         isSDKStarted = true
         return true
     }
-
+    
     private func log(_ message: String) {
         #if DEBUG
         print("⚠️ AdmobKit: \(message)")

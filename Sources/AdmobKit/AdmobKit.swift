@@ -19,32 +19,32 @@ import GoogleMobileAds
 /// ```
 @MainActor
 public final class AdmobKit: ObservableObject {
-
+    
     // MARK: - Singleton
-
+    
     /// Shared instance for SDK operations
     public static let shared = AdmobKit()
-
+    
     // MARK: - Configuration Storage
-
+    
     private static var _bannerAdUnitID: String?
     private static var _interstitialAdUnitID: String?
     private static var _rewardedAdUnitID: String?
     private static var consentDebugSettings: ConsentDebugSettings?
-
+    
     // MARK: - Properties
-
+    
     /// Indicates whether the Google Mobile Ads SDK has started and ads can be requested
     @Published public private(set) var isInitialized = false
-
+    
     /// Whether this user must be offered a way to change their privacy choices
     /// (for example, users in the EEA). Show `PrivacyOptionsButton` in your settings screen.
     @Published public private(set) var isPrivacyOptionsRequired = false
-
+    
     private let startup: AdsStartupCoordinator
-
+    
     // MARK: - Init
-
+    
     private init() {
         startup = AdsStartupCoordinator(
             consent: UMPConsentGateway(),
@@ -88,7 +88,7 @@ public final class AdmobKit: ObservableObject {
     }
     
     // MARK: - Consent Debugging
-
+    
     /// Simulates a region for the consent flow. Applied in Debug builds only; ignored in Release.
     ///
     /// Call before `initialize()`. Combine with `resetConsent()` to see the form again.
@@ -105,7 +105,7 @@ public final class AdmobKit: ObservableObject {
             testDeviceIdentifiers: testDeviceIdentifiers
         )
     }
-
+    
     private static var activeConsentDebugSettings: ConsentDebugSettings? {
         #if DEBUG
         return consentDebugSettings
@@ -113,7 +113,7 @@ public final class AdmobKit: ObservableObject {
         return nil
         #endif
     }
-
+    
     // MARK: - Ad Unit ID Accessors (Internal)
     
     /// Returns the appropriate banner ad unit ID based on environment
@@ -168,28 +168,28 @@ public final class AdmobKit: ObservableObject {
     public func initialize() {
         Task { _ = await waitUntilAdsCanBeRequested() }
     }
-
+    
     /// Runs the startup flow if needed and returns whether ads can be requested.
     func waitUntilAdsCanBeRequested() async -> Bool {
         let canRequestAds = await startup.start(debugSettings: Self.activeConsentDebugSettings)
         syncState()
         return canRequestAds
     }
-
+    
     // MARK: - Privacy Options
-
+    
     /// Presents the privacy options form so the user can change their consent choices.
     public func presentPrivacyOptions() async {
         _ = await startup.presentPrivacyOptions()
         syncState()
     }
-
+    
     /// Clears the stored consent so the form appears again on the next launch. Intended for testing.
     public func resetConsent() {
         startup.resetConsent()
         syncState()
     }
-
+    
     private func syncState() {
         if isInitialized != startup.isSDKStarted {
             isInitialized = startup.isSDKStarted
@@ -198,9 +198,9 @@ public final class AdmobKit: ObservableObject {
             isPrivacyOptionsRequired = startup.isPrivacyOptionsRequired
         }
     }
-
+    
     // MARK: - Debug Logging
-
+    
     #if DEBUG
     private static func logInitializationStatus(_ status: InitializationStatus) {
         print("✅ Google Mobile Ads SDK initialized")

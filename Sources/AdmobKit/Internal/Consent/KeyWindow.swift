@@ -9,7 +9,7 @@ import UIKit
 
 @MainActor
 enum KeyWindow {
-
+    
     /// Returns once the app has a key window, or after `timeout` seconds.
     static func wait(timeout: TimeInterval = 3) async {
         let deadline = Date().addingTimeInterval(timeout)
@@ -17,7 +17,7 @@ enum KeyWindow {
             try? await Task.sleep(nanoseconds: 100_000_000)
         }
     }
-
+    
     private static var exists: Bool {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }

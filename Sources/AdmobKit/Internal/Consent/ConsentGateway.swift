@@ -22,15 +22,15 @@ protocol ConsentGateway {
 /// `ConsentGateway` backed by the Google UMP SDK.
 @MainActor
 final class UMPConsentGateway: ConsentGateway {
-
+    
     var canRequestAds: Bool {
         ConsentInformation.shared.canRequestAds
     }
-
+    
     var isPrivacyOptionsRequired: Bool {
         ConsentInformation.shared.privacyOptionsRequirementStatus == .required
     }
-
+    
     func requestUpdate(debugSettings: ConsentDebugSettings?) async throws {
         let parameters = RequestParameters()
         if let debugSettings = debugSettings {
@@ -41,15 +41,15 @@ final class UMPConsentGateway: ConsentGateway {
         }
         try await ConsentInformation.shared.requestConsentInfoUpdate(with: parameters)
     }
-
+    
     func loadAndPresentIfRequired() async throws {
         try await ConsentForm.loadAndPresentIfRequired(from: nil)
     }
-
+    
     func presentPrivacyOptions() async throws {
         try await ConsentForm.presentPrivacyOptionsForm(from: nil)
     }
-
+    
     func reset() {
         ConsentInformation.shared.reset()
     }
