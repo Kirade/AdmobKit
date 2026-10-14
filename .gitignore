@@ -12,6 +12,9 @@ build/
 DerivedData/
 *.build/
 
+# Claude Code worktrees
+.claude/worktrees/
+
 # Swift Package Manager
 .swiftpm/
 .build/
