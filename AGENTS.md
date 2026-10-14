@@ -48,7 +48,7 @@ AdmobKit/
 
 | Task | Location | Notes |
 |------|----------|-------|
-| Add new ad format | `Views/` | Create subdir, follow Banner/Interstitial pattern; await `waitUntilAdsCanBeRequested()` before loading |
+| Add new ad format | `Views/` | Create subdir, follow Banner/Interstitial pattern; pass the consent gate before loading (see CONVENTIONS) |
 | Change environment logic | `Internal/AdConfig.swift` | Test vs production switching |
 | Change consent / start-up order | `Internal/Consent/AdsStartupCoordinator.swift` | Covered by `AdsStartupCoordinatorTests` |
 | Add config options | `AdmobKit.swift` | Static configure() method |
@@ -63,8 +63,9 @@ AdmobKit/
 | `AdmobKit.configure()` | static method | AdmobKit.swift:72 | Set production ad unit IDs |
 | `AdmobKit.setConsentDebug()` | static method | AdmobKit.swift:99 | Simulate a consent region (Debug builds only) |
 | `AdmobKit.shared.initialize()` | method | AdmobKit.swift:168 | Gather consent, then start the SDK |
-| `AdmobKit.shared.waitUntilAdsCanBeRequested()` | internal method | AdmobKit.swift:173 | Gate every ad load on |
-| `AdmobKit.shared.presentPrivacyOptions()` | method | AdmobKit.swift:182 | Privacy options form |
+| `AdmobKit.shared.waitUntilAdsCanBeRequested()` | internal method | AdmobKit.swift:173 | One-shot gate for each ad load (interstitials) |
+| `AdmobKit.shared.waitUntilSDKStarted()` | internal method | AdmobKit.swift:181 | Waits until ads are allowed, even later in the session (banners) |
+| `AdmobKit.shared.presentPrivacyOptions()` | method | AdmobKit.swift:189 | Privacy options form |
 | `AdsStartupCoordinator` | class | Internal/Consent | Runs the consent/start-up flow once |
 | `PrivacyOptionsButton` | struct | Views/Consent | Settings-screen entry point |
 | `AdBannerView` / `AdBannerSize` | struct / enum | Views/Banner | Drop-in SwiftUI banner, `.standard` or `.adaptive` |
@@ -74,7 +75,7 @@ AdmobKit/
 ## CONVENTIONS
 
 - **@MainActor**: All public ad classes (AdmobKit, InterstitialAdLoader) and consent types
-- **Consent gate**: Never request an ad before `await AdmobKit.shared.waitUntilAdsCanBeRequested()` returns `true`
+- **Consent gate**: Never request an ad before the gate opens. Per-request loaders call `await AdmobKit.shared.waitUntilAdsCanBeRequested()` and skip on `false`; views that stay on screen call `await AdmobKit.shared.waitUntilSDKStarted()` so they recover when the user allows ads through privacy options
 - **No UMP types in public API**: Wrap them (e.g. `ConsentDebugGeography`) so apps never import UserMessagingPlatform
 - **Testable seams**: Keep SDK calls behind small protocols/closures and logic in pure types, as `AdsStartupCoordinator`, `RetryBackoff`, `AdFreshness`, `DismissCallbacks`, and `BannerRequestTracker` do
 - **MARK comments**: Divide code into sections (Singleton, Properties, Init, etc.)

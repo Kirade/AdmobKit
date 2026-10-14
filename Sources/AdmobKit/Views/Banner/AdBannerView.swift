@@ -102,7 +102,7 @@ private class BannerContainerView: UIView {
         bannerView = banner
         
         Task { [weak self] in
-            guard await AdmobKit.shared.waitUntilAdsCanBeRequested() else { return }
+            await AdmobKit.shared.waitUntilSDKStarted()
             self?.canRequestAds = true
             self?.loadIfNeeded()
         }

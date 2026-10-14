@@ -136,4 +136,37 @@ final class AdsStartupCoordinatorTests: XCTestCase {
         
         XCTAssertEqual(consent.receivedDebugSettings, [settings])
     }
+    
+    func testWaitingForSDKStartReturnsImmediatelyWhenAdsAreAllowed() async {
+        let consent = FakeConsentGateway()
+        consent.canRequestAds = true
+        let coordinator = makeCoordinator(consent)
+        
+        await coordinator.waitUntilSDKStarted(debugSettings: nil)
+        
+        XCTAssertTrue(coordinator.isSDKStarted)
+    }
+    
+    func testWaiterResumesWhenPrivacyOptionsLaterAllowAds() async {
+        let consent = FakeConsentGateway()
+        let coordinator = makeCoordinator(consent)
+        _ = await coordinator.start(debugSettings: nil)
+        
+        // A banner already on screen keeps waiting while ads are not allowed.
+        let waiter = Task {
+            await coordinator.waitUntilSDKStarted(debugSettings: nil)
+            consent.record("waiterResumed")
+        }
+        for _ in 0..<10 {
+            await Task.yield()
+        }
+        XCTAssertEqual(consent.count("waiterResumed"), 0)
+        
+        consent.canRequestAdsAfterPrivacyOptions = true
+        _ = await coordinator.presentPrivacyOptions()
+        await waiter.value
+        
+        XCTAssertEqual(consent.count("waiterResumed"), 1)
+        XCTAssertEqual(consent.count("sdkStart"), 1)
+    }
 }

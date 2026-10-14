@@ -22,6 +22,7 @@ final class AdsStartupCoordinator {
     
     private var startupTask: Task<Bool, Never>?
     private var sdkStartTask: Task<Void, Never>?
+    private var sdkStartWaiters: [CheckedContinuation<Void, Never>] = []
     
     /// Whether the Google Mobile Ads SDK finished starting.
     private(set) var isSDKStarted = false
@@ -54,6 +55,19 @@ final class AdsStartupCoordinator {
         let task = Task { await runStartup(debugSettings: debugSettings) }
         startupTask = task
         return await task.value
+    }
+    
+    /// Runs the startup flow if needed, then suspends until the SDK has started. If ads are not
+    /// allowed yet, this keeps waiting until the user allows them through the privacy options form.
+    func waitUntilSDKStarted(debugSettings: ConsentDebugSettings?) async {
+        guard await !start(debugSettings: debugSettings) else { return }
+        await withCheckedContinuation { continuation in
+            if isSDKStarted {
+                continuation.resume()
+            } else {
+                sdkStartWaiters.append(continuation)
+            }
+        }
     }
     
     // MARK: - Privacy Options
@@ -109,6 +123,10 @@ final class AdsStartupCoordinator {
             await task.value
         }
         isSDKStarted = true
+        
+        let waiters = sdkStartWaiters
+        sdkStartWaiters.removeAll()
+        waiters.forEach { $0.resume() }
         return true
     }
     

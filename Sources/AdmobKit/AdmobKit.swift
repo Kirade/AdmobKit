@@ -176,6 +176,13 @@ public final class AdmobKit: ObservableObject {
         return canRequestAds
     }
     
+    /// Suspends until ads can be requested, including after the user allows them later
+    /// through the privacy options form. For views that stay on screen, like banners.
+    func waitUntilSDKStarted() async {
+        await startup.waitUntilSDKStarted(debugSettings: Self.activeConsentDebugSettings)
+        syncState()
+    }
+    
     // MARK: - Privacy Options
     
     /// Presents the privacy options form so the user can change their consent choices.
