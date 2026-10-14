@@ -7,13 +7,14 @@ A reusable Swift Package for Google AdMob integration in iOS apps.
 - **Simple API**: Configure once, use everywhere
 - **Automatic Environment Detection**: Uses test ads in Debug/TestFlight, production ads in App Store
 - **SwiftUI First**: Native SwiftUI banner view with smooth animations
-- **Future-Proof**: Ready for interstitial, rewarded, and other ad formats
+- **Interstitial Ads**: Load/show helper that preloads the next ad after each dismissal
 
 ## Requirements
 
 - iOS 15.0+
 - Swift 5.9+
-- Xcode 15.0+
+- Xcode 16.0+ (App Store submissions require Xcode 26)
+- Google Mobile Ads SDK 13.x (resolved automatically)
 
 ## Installation
 
@@ -23,7 +24,7 @@ Add the following to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/Kirade/AdmobKit.git", from: "1.0.0")
+    .package(url: "https://github.com/Kirade/AdmobKit.git", from: "2.0.0")
 ]
 ```
 
@@ -55,6 +56,8 @@ Add SKAdNetwork identifiers (required for iOS 14+):
     <!-- Add more as needed -->
 </array>
 ```
+
+Copy the full, up-to-date identifier list from Google's [Update your Info.plist](https://developers.google.com/admob/ios/quick-start#update_your_infoplist) guide.
 
 ### 2. Initialize in App
 
@@ -104,6 +107,32 @@ struct ContentView: View {
 }
 ```
 
+### 4. Display Interstitial Ads
+
+```swift
+import SwiftUI
+import AdmobKit
+
+struct GameView: View {
+    @State private var interstitial = InterstitialAdLoader()
+    
+    var body: some View {
+        Button("Next Level") {
+            guard let rootViewController = UIApplication.shared.connectedScenes
+                .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
+                .first else { return }
+            
+            interstitial.showAd(from: rootViewController) {
+                // Continue here - called after dismissal, or immediately if no ad is ready
+            }
+        }
+        .onAppear {
+            interstitial.loadAd()
+        }
+    }
+}
+```
+
 ## Environment Detection
 
 AdmobKit automatically detects your environment and uses the appropriate ads:
@@ -148,9 +177,33 @@ The banner view:
 - Hides when ad fails to load
 - Uses standard banner size (320x50)
 
+### InterstitialAdLoader
+
+```swift
+let interstitial = InterstitialAdLoader()
+
+// Preload an ad (no-op while a load is in flight)
+interstitial.loadAd()
+
+// Present the ad; onDismiss runs after dismissal, or immediately if no ad is ready
+interstitial.showAd(from: viewController, onDismiss: { })
+```
+
+The loader:
+- Preloads the next ad automatically after each dismissal
+- Does not retry after a failed load - call `loadAd()` again to retry
+
+## Migrating from 1.x
+
+2.0 has no AdmobKit API changes. It moves the underlying Google Mobile Ads SDK from 12.x to 13.x ([v12 is deprecated in Q1 2027 and sunset in Q2 2028](https://developers.google.com/admob/ios/deprecation)).
+
+- Change your dependency rule to `from: "2.0.0"` - an "Up to Next Major Version" rule starting at 1.x will not pick up 2.0.
+- If you use mediation adapters, update them to versions compatible with Google Mobile Ads SDK 13.
+- See Google's [v12 → v13 migration guide](https://developers.google.com/admob/ios/migration#migrate-to-sdk-v13) if your app also calls the SDK directly.
+
 ## Roadmap
 
-- [ ] Interstitial Ads
+- [x] Interstitial Ads
 - [ ] Rewarded Ads
 - [ ] Rewarded Interstitial Ads
 - [ ] Native Ads
