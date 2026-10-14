@@ -39,3 +39,11 @@ jobs:
             -quiet \
             SWIFT_VERSION=6 \
             SWIFT_STRICT_CONCURRENCY=complete
+
+      - name: Test
+        run: |
+          xcodebuild test \
+            -scheme AdmobKit \
+            -destination "$(bash scripts/simulator-destination.sh)" \
+            -skipPackagePluginValidation \
+            -quiet
