@@ -52,11 +52,20 @@ public final class InterstitialAdLoader: NSObject {
         super.init()
     }
     
+    deinit {
+        retryTask?.cancel()
+        expiryTask?.cancel()
+    }
+    
     // MARK: - Loading
     
     /// Preloads an interstitial. Waits for consent and SDK start-up, and retries failed
     /// loads 5 times with growing delays (5, 10, 20, 40, 60 seconds).
+    ///
+    /// Does nothing while a load is in flight, an ad is ready, or a retry is pending.
     public func loadAd() {
+        guard !_isLoading, interstitialAd == nil, retryTask == nil else { return }
+        
         retryBackoff.reset()
         startLoading()
     }
@@ -64,7 +73,6 @@ public final class InterstitialAdLoader: NSObject {
     private func startLoading() {
         guard !_isLoading, interstitialAd == nil else { return }
         
-        retryTask?.cancel()
         retryTask = nil
         _isLoading = true
         
@@ -182,6 +190,18 @@ public final class InterstitialAdLoader: NSObject {
             #if DEBUG
             print("⚠️ AdmobKit: Interstitial not ready, skipping")
             #endif
+            onDismiss()
+            loadAd()
+            return
+        }
+        
+        do {
+            try ad.canPresent(from: viewController)
+        } catch {
+            #if DEBUG
+            print("⚠️ AdmobKit: Interstitial cannot be presented - \(error.localizedDescription)")
+            #endif
+            clearAd()
             onDismiss()
             loadAd()
             return
