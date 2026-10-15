@@ -50,5 +50,6 @@ final class FakeConsentGateway: ConsentGateway {
     func reset() {
         record("reset")
         canRequestAds = false
+        isPrivacyOptionsRequired = false
     }
 }

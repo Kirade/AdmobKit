@@ -51,7 +51,7 @@ final class AdsStartupCoordinatorTests: XCTestCase {
         XCTAssertEqual(consent.count("sdkStart"), 0)
     }
     
-    func testContinuesWithPreviousConsentWhenUpdateFails() async {
+    func testSkipsFormAndUsesPreviousConsentWhenUpdateFails() async {
         let consent = FakeConsentGateway()
         consent.updateError = TestError()
         consent.canRequestAds = true
@@ -60,7 +60,18 @@ final class AdsStartupCoordinatorTests: XCTestCase {
         let canRequestAds = await coordinator.start(debugSettings: nil)
         
         XCTAssertTrue(canRequestAds)
-        XCTAssertEqual(consent.events, ["update", "window", "form", "sdkStart"])
+        XCTAssertEqual(consent.events, ["update", "sdkStart"])
+    }
+    
+    func testUpdateFailureWithoutPreviousConsentRequestsNoAds() async {
+        let consent = FakeConsentGateway()
+        consent.updateError = TestError()
+        let coordinator = makeCoordinator(consent)
+        
+        let canRequestAds = await coordinator.start(debugSettings: nil)
+        
+        XCTAssertFalse(canRequestAds)
+        XCTAssertEqual(consent.events, ["update"])
     }
     
     func testContinuesWhenConsentFormFails() async {
@@ -123,6 +134,31 @@ final class AdsStartupCoordinatorTests: XCTestCase {
         let coordinator = makeCoordinator(consent)
         
         _ = await coordinator.start(debugSettings: nil)
+        
+        XCTAssertTrue(coordinator.isPrivacyOptionsRequired)
+    }
+    
+    func testResetConsentClearsPrivacyOptionsRequirement() async {
+        let consent = FakeConsentGateway()
+        consent.canRequestAds = true
+        consent.isPrivacyOptionsRequired = true
+        let coordinator = makeCoordinator(consent)
+        _ = await coordinator.start(debugSettings: nil)
+        
+        coordinator.resetConsent()
+        
+        XCTAssertEqual(consent.count("reset"), 1)
+        XCTAssertFalse(coordinator.isPrivacyOptionsRequired)
+    }
+    
+    func testPrivacyOptionsRefreshesPrivacyOptionsRequirement() async {
+        let consent = FakeConsentGateway()
+        consent.canRequestAds = true
+        let coordinator = makeCoordinator(consent)
+        _ = await coordinator.start(debugSettings: nil)
+        consent.isPrivacyOptionsRequired = true
+        
+        _ = await coordinator.presentPrivacyOptions()
         
         XCTAssertTrue(coordinator.isPrivacyOptionsRequired)
     }
