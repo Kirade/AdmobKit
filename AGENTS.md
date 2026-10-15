@@ -38,6 +38,8 @@ AdmobKit/
 │           ├── InterstitialAdLoader.swift   # Full-screen ad manager (injectable load/sleep/clock)
 │           └── PresentableAd.swift          # Protocol over InterstitialAd so tests can use fakes
 ├── Tests/AdmobKitTests/         # XCTest: coordinator + loader (fakes in *TestDoubles / Fake*.swift) + pure helpers
+├── Examples/
+│   └── AdmobKitDemo.swiftpm/    # Reference app (path dependency on this checkout); CI builds it
 ├── scripts/
 │   └── simulator-destination.sh # Picks an available iPhone simulator for `xcodebuild test`
 ├── docs/superpowers/            # Design spec and implementation plan for 2.1.0
@@ -55,6 +57,8 @@ AdmobKit/
 | Add config options | `AdmobKit.swift` | Static configure() method |
 | Modify ad unit ID handling | `AdmobKit.swift:117-159` | Accessor properties + DEBUG missing-ID warning |
 | Bump GoogleMobileAds | `Package.swift` | Major bump → AdmobKit major release (see NOTES) |
+| See or verify a change in a running app | `Examples/AdmobKitDemo.swiftpm` | Launch args `-geography eea\|us\|other`, `-reset`, `-autoShowInterstitial`; see its README |
+| Change how apps integrate AdmobKit | `~/claude-harness/plugins/ios-dev/skills/admobkit/SKILL.md` | The skill AI agents follow in app repos (see CONVENTIONS) |
 
 ## CODE MAP
 
@@ -86,6 +90,7 @@ AdmobKit/
 - **Concurrency**: Prefer the SDK's `async` APIs (`await MobileAds.shared.start()`, `try await InterstitialAd.load(...)`) inside a `Task` from `@MainActor` code; for delegate callbacks use `Task { @MainActor in }`
 - **Swift 6 clean**: Code must build with `SWIFT_VERSION=6 SWIFT_STRICT_CONCURRENCY=complete` (enforced in CI), but the manifest stays in Swift 5 mode
 - **Indentation**: 4 spaces
+- **Keep consumers in sync**: When the public API, required Info.plist keys, or AdMob console setup changes, update in the same PR: `README.md`, `Examples/AdmobKitDemo.swiftpm`, and the `admobkit` skill in `~/claude-harness/plugins/ios-dev/skills/admobkit/SKILL.md` (separate repo `Kirade/claude-harness`: hand that edit off as its own worktree/PR and bump the version the skill names)
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
@@ -118,6 +123,9 @@ xcodebuild build -scheme AdmobKit -destination 'generic/platform=iOS Simulator' 
 
 # Unit tests (same as CI)
 xcodebuild test -scheme AdmobKit -destination "$(./scripts/simulator-destination.sh)" -skipPackagePluginValidation -quiet
+
+# Example app (same as CI)
+cd Examples/AdmobKitDemo.swiftpm && xcodebuild build -scheme AdmobKitDemo -destination 'generic/platform=iOS Simulator' -skipPackagePluginValidation -quiet
 
 # Resolve dependencies
 swift package resolve

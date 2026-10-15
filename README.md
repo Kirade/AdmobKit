@@ -186,6 +186,10 @@ init() {
 
 Simulators apply the simulated region automatically. On a real device, run once, copy the test device ID the UMP SDK prints to the Xcode console, and pass it as `testDeviceIdentifiers:`.
 
+## Example App
+
+[`Examples/AdmobKitDemo.swiftpm`](Examples/AdmobKitDemo.swiftpm) is a minimal SwiftUI app that integrates AdmobKit from this checkout with Google's sample app ID. Open it in Xcode to see consent, adaptive banners, and interstitials working, and switch scenarios with launch arguments (`-geography eea|us|other`, `-reset`, `-autoShowInterstitial`). See its README for details.
+
 ## Environment Detection
 
 AdmobKit automatically detects your environment and uses the appropriate ads:
