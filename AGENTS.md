@@ -35,8 +35,9 @@ AdmobKit/
 │       │   └── PrivacyOptionsButton.swift   # Shows only when privacy options are required
 │       └── Interstitial/
 │           ├── DismissCallbacks.swift       # onDismiss callbacks queued while an ad is shown
-│           └── InterstitialAdLoader.swift   # Full-screen ad manager
-├── Tests/AdmobKitTests/         # XCTest: coordinator (with FakeConsentGateway) + pure helpers
+│           ├── InterstitialAdLoader.swift   # Full-screen ad manager (injectable load/sleep/clock)
+│           └── PresentableAd.swift          # Protocol over InterstitialAd so tests can use fakes
+├── Tests/AdmobKitTests/         # XCTest: coordinator + loader (fakes in *TestDoubles / Fake*.swift) + pure helpers
 ├── scripts/
 │   └── simulator-destination.sh # Picks an available iPhone simulator for `xcodebuild test`
 ├── docs/superpowers/            # Design spec and implementation plan for 2.1.0
@@ -69,7 +70,8 @@ AdmobKit/
 | `AdsStartupCoordinator` | class | Internal/Consent | Runs the consent/start-up flow once |
 | `PrivacyOptionsButton` | struct | Views/Consent | Settings-screen entry point |
 | `AdBannerView` / `AdBannerSize` | struct / enum | Views/Banner | Drop-in SwiftUI banner, `.standard` or `.adaptive` |
-| `InterstitialAdLoader` | class | Views/Interstitial | Load/show interstitials with retry and expiry |
+| `InterstitialAdLoader` | class | Views/Interstitial | Load/show interstitials with retry and expiry; internal init injects load/sleep/clock for tests |
+| `PresentableAd` | protocol | Views/Interstitial | `canPresent`/`present`/delegate surface; `InterstitialAd` conforms |
 | `AdConfig` | enum | Internal/AdConfig.swift | Test IDs + environment detection |
 
 ## CONVENTIONS
@@ -77,7 +79,7 @@ AdmobKit/
 - **@MainActor**: All public ad classes (AdmobKit, InterstitialAdLoader) and consent types
 - **Consent gate**: Never request an ad before the gate opens. Per-request loaders call `await AdmobKit.shared.waitUntilAdsCanBeRequested()` and skip on `false`; views that stay on screen call `await AdmobKit.shared.waitUntilSDKStarted()` so they recover when the user allows ads through privacy options
 - **No UMP types in public API**: Wrap them (e.g. `ConsentDebugGeography`) so apps never import UserMessagingPlatform
-- **Testable seams**: Keep SDK calls behind small protocols/closures and logic in pure types, as `AdsStartupCoordinator`, `RetryBackoff`, `AdFreshness`, `DismissCallbacks`, and `BannerRequestTracker` do
+- **Testable seams**: Keep SDK calls behind small protocols/closures and logic in pure types, as `AdsStartupCoordinator`, `InterstitialAdLoader` (via `PresentableAd` + injected closures), `RetryBackoff`, `AdFreshness`, `DismissCallbacks`, and `BannerRequestTracker` do. Loader tests park sleeps in `FakeSleeper` and call `settle()` to let main-actor tasks run
 - **MARK comments**: Divide code into sections (Singleton, Properties, Init, etc.)
 - **#if DEBUG**: Wrap ALL print statements
 - **Access control**: `public private(set)` for read-only state, `private init()` for singletons

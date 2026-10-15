@@ -249,22 +249,27 @@ The banner view:
 ```swift
 let interstitial = InterstitialAdLoader()
 
-// Preload an ad (no-op while a load is in flight or an ad is ready)
+// Preload an ad (no-op while a load is in flight, an ad is ready, or a retry is pending)
 interstitial.loadAd()
 
 // Present the ad from the top view controller (or pass `from: viewController`);
-// onDismiss runs after dismissal, or immediately if no ad is ready
+// onDismiss runs after dismissal, or immediately if no ad can be shown
 interstitial.showAd { }
 ```
 
 The loader:
 - Waits for consent and SDK start-up before loading
-- Retries a failed load up to 5 times (after 5, 10, 20, 40, and 60 seconds)
+- Retries a failed load up to 5 times (after 5, 10, 20, 40, and 60 seconds); calling `loadAd()` again while a retry is pending keeps that schedule
 - Replaces an unshown ad after 55 minutes, before Google's one-hour expiry
+- Checks that the ad can be presented first; if not, skips it and loads a new one
 - Preloads the next ad automatically after each dismissal
 - Calls every `onDismiss` passed while an ad is on screen once it closes
 
 ## Upgrading
+
+### From 2.1.0 to 2.1.1
+
+No code changes are required. `loadAd()` no longer restarts a pending retry immediately, so calling it from `.onAppear` does not send extra ad requests while loads are failing.
 
 ### From 2.0 to 2.1
 

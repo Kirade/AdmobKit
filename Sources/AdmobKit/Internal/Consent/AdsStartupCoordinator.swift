@@ -94,7 +94,10 @@ final class AdsStartupCoordinator {
         do {
             try await consent.requestUpdate(debugSettings: debugSettings)
         } catch {
+            // Like Google's sample: without fresh consent info there is no form to show,
+            // so fall back to the previous session's consent right away.
             log("Consent info update failed - \(error.localizedDescription)")
+            return await startSDKIfAllowed()
         }
         
         await waitForWindow()

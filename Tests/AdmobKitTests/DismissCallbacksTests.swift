@@ -19,13 +19,13 @@ final class DismissCallbacksTests: XCTestCase {
     func testCallbackCanQueueAnotherWhileDrainedCallbacksRun() {
         var callbacks = DismissCallbacks()
         var calls: [Int] = []
-        callbacks.append { calls.append(1) }
-        
         // Simulates an onDismiss that calls showAd again while the ad is closing.
-        for callback in callbacks.drain() {
-            callback()
+        callbacks.append {
+            calls.append(1)
             callbacks.append { calls.append(2) }
         }
+        
+        callbacks.drain().forEach { $0() }
         callbacks.drain().forEach { $0() }
         
         XCTAssertEqual(calls, [1, 2])

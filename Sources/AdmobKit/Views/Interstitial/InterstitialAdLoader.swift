@@ -9,9 +9,16 @@ import GoogleMobileAds
 @MainActor
 public final class InterstitialAdLoader: NSObject {
     
+    // MARK: - Dependencies
+    
+    private let waitUntilAdsCanBeRequested: @MainActor () async -> Bool
+    private let fetchAd: @MainActor (String) async throws -> PresentableAd
+    private let sleepFor: @MainActor (TimeInterval) async -> Void
+    private let now: @MainActor () -> Date
+    
     // MARK: - Properties
     
-    private var interstitialAd: InterstitialAd?
+    private var interstitialAd: PresentableAd?
     private var loadedAt: Date?
     private var delegateHandler: InterstitialDelegateHandler?
     private var dismissCallbacks = DismissCallbacks()
@@ -23,15 +30,42 @@ public final class InterstitialAdLoader: NSObject {
     
     // MARK: - Init
     
-    public override init() {
+    public override convenience init() {
+        self.init(
+            waitUntilAdsCanBeRequested: { await AdmobKit.shared.waitUntilAdsCanBeRequested() },
+            loadAd: { adUnitID in try await InterstitialAd.load(with: adUnitID, request: Request()) },
+            sleep: { delay in try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) },
+            now: { Date() }
+        )
+    }
+    
+    init(
+        waitUntilAdsCanBeRequested: @escaping @MainActor () async -> Bool,
+        loadAd: @escaping @MainActor (String) async throws -> PresentableAd,
+        sleep: @escaping @MainActor (TimeInterval) async -> Void,
+        now: @escaping @MainActor () -> Date
+    ) {
+        self.waitUntilAdsCanBeRequested = waitUntilAdsCanBeRequested
+        self.fetchAd = loadAd
+        self.sleepFor = sleep
+        self.now = now
         super.init()
+    }
+    
+    deinit {
+        retryTask?.cancel()
+        expiryTask?.cancel()
     }
     
     // MARK: - Loading
     
     /// Preloads an interstitial. Waits for consent and SDK start-up, and retries failed
     /// loads 5 times with growing delays (5, 10, 20, 40, 60 seconds).
+    ///
+    /// Does nothing while a load is in flight, an ad is ready, or a retry is pending.
     public func loadAd() {
+        guard !_isLoading, interstitialAd == nil, retryTask == nil else { return }
+        
         retryBackoff.reset()
         startLoading()
     }
@@ -39,12 +73,11 @@ public final class InterstitialAdLoader: NSObject {
     private func startLoading() {
         guard !_isLoading, interstitialAd == nil else { return }
         
-        retryTask?.cancel()
         retryTask = nil
         _isLoading = true
         
-        Task { [weak self] in
-            guard await AdmobKit.shared.waitUntilAdsCanBeRequested() else {
+        Task { [weak self, waitUntilAdsCanBeRequested] in
+            guard await waitUntilAdsCanBeRequested() else {
                 self?._isLoading = false
                 return
             }
@@ -60,7 +93,7 @@ public final class InterstitialAdLoader: NSObject {
         #endif
         
         do {
-            let ad = try await InterstitialAd.load(with: adUnitID, request: Request())
+            let ad = try await fetchAd(adUnitID)
             _isLoading = false
             retryBackoff.reset()
             
@@ -69,7 +102,7 @@ public final class InterstitialAdLoader: NSObject {
             #endif
             
             interstitialAd = ad
-            loadedAt = Date()
+            loadedAt = now()
             delegateHandler = InterstitialDelegateHandler(loader: self)
             ad.fullScreenContentDelegate = delegateHandler
             scheduleExpiryRefresh()
@@ -96,8 +129,8 @@ public final class InterstitialAdLoader: NSObject {
         print("⏳ AdmobKit: Retrying interstitial in \(Int(delay))s")
         #endif
         
-        retryTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+        retryTask = Task { [weak self, sleepFor] in
+            await sleepFor(delay)
             guard !Task.isCancelled else { return }
             self?.startLoading()
         }
@@ -107,8 +140,8 @@ public final class InterstitialAdLoader: NSObject {
     
     private func scheduleExpiryRefresh() {
         expiryTask?.cancel()
-        expiryTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(AdFreshness.lifetime * 1_000_000_000))
+        expiryTask = Task { [weak self, sleepFor] in
+            await sleepFor(AdFreshness.lifetime)
             guard !Task.isCancelled else { return }
             self?.refreshExpiredAd()
         }
@@ -146,7 +179,7 @@ public final class InterstitialAdLoader: NSObject {
             return
         }
         
-        if let loadedAt = loadedAt, AdFreshness.isExpired(loadedAt: loadedAt) {
+        if let loadedAt = loadedAt, AdFreshness.isExpired(loadedAt: loadedAt, now: now()) {
             #if DEBUG
             print("⌛ AdmobKit: Interstitial expired before showing")
             #endif
@@ -157,6 +190,18 @@ public final class InterstitialAdLoader: NSObject {
             #if DEBUG
             print("⚠️ AdmobKit: Interstitial not ready, skipping")
             #endif
+            onDismiss()
+            loadAd()
+            return
+        }
+        
+        do {
+            try ad.canPresent(from: viewController)
+        } catch {
+            #if DEBUG
+            print("⚠️ AdmobKit: Interstitial cannot be presented - \(error.localizedDescription)")
+            #endif
+            clearAd()
             onDismiss()
             loadAd()
             return
