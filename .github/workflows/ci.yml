@@ -47,3 +47,13 @@ jobs:
             -destination "$(bash scripts/simulator-destination.sh)" \
             -skipPackagePluginValidation \
             -quiet
+
+      # Keeps the reference integration compiling against the current public API.
+      - name: Build example app
+        working-directory: Examples/AdmobKitDemo.swiftpm
+        run: |
+          xcodebuild build \
+            -scheme AdmobKitDemo \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation \
+            -quiet
